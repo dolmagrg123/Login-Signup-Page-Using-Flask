@@ -1,30 +1,34 @@
 from flask import Flask, render_template, url_for, redirect
-from flask_sqlalchemy import SQLAlchemy
-from datetime import datetime
 
 #referencing this file
 app = Flask(__name__)
-# a= False
 
 #pass the url string
-@app.route('/')
+@app.route("/")
 #define the function for the route
-def index():
+def home():
     return render_template("index.html")
 
-@app.route("/<name>")
-def user(name):
-    return f"Hello {name}!"
-
-
-@app.route("/admin")
-def admin():
-    # if a:
-    return redirect(url_for("index"))
+@app.route("/test")
+#define the function for the route
+def test():
+    return render_template("new.html")
 
 if __name__ == "__main__":
         app.run(debug=True)
 
+
+# def home():
+#     return "Hello! this is the main page <h1> HELLO</h1>"
+
+# @app.route("/<name>")
+# def user(name):
+#     return f"Hello {name}!"
+
+# @app.route("/admin/")
+# def admin():
+#     # if a:
+#     return redirect(url_for("user", name="Admin!")
 
 
 
