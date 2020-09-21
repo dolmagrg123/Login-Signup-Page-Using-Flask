@@ -1,112 +1,87 @@
-from flask import Flask, render_template, url_for, redirect, request, session, flash
-from datetime import timedelta
-from flask_sqlalchemy import SQLAlchemy
+from flask import Flask, render_template, redirect, url_for
+from flask_bootstrap import Bootstrap
+from flask_wtf import FlaskForm 
+from wtforms import StringField, PasswordField, BooleanField
+from wtforms.validators import InputRequired, Email, Length
+from flask_sqlalchemy  import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 
-#referencing this file
 app = Flask(__name__)
-app.secret_key = "hello"
-app.config["SQLALCHEMY_DATABASE_URI"] = 'sqlite:///users.sqlite3'
-app.config["SQLALCHEMY_TRACK_MODIFICATION"] =False
-app.permanent_session_lifetime = timedelta(minutes=5)
-
+app.config['SECRET_KEY'] = 'Thisissupposedtobesecret!'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////C:\Program Files (x86)\sqlite3
+bootstrap = Bootstrap(app)
 db = SQLAlchemy(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
 
-class users(db.Model):
-    _id = db.Column("id", db.Integer, primary_key=True)
-    name = db.Column( db.String(100))
-    email = db. Column( db.String(100))
+class User(UserMixin, db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(15), unique=True)
+    email = db.Column(db.String(50), unique=True)
+    password = db.Column(db.String(80))
 
-    def __init__(self, name, email):
-        self.name = name
-        self.email = email
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+class LoginForm(FlaskForm):
+    username = StringField('username', validators=[InputRequired(), Length(min=4, max=15)])
+    password = PasswordField('password', validators=[InputRequired(), Length(min=8, max=80)])
+    remember = BooleanField('remember me')
+
+class RegisterForm(FlaskForm):
+    email = StringField('email', validators=[InputRequired(), Email(message='Invalid email'), Length(max=50)])
+    username = StringField('username', validators=[InputRequired(), Length(min=4, max=15)])
+    password = PasswordField('password', validators=[InputRequired(), Length(min=8, max=80)])
 
 
-#pass the url string
-@app.route("/")
-#define the function for the route
-def home():
-    return render_template("index.html")
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-@app.route("/login", methods=["POST", "GET"])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method =="POST":
-        session.permanent = True
-        user = request.form["nm"]
-        session["user"] = user
+    form = LoginForm()
+    #Checks if form is submitted
+    if form.validate_on_submit():
+        user = User.query.filter_by(username=form.username.data).first()
+        if user:
+            if check_password_hash(user.password, form.password.data):
+                login_user(user, remember=form.remember.data)
+                return redirect(url_for('dashboard'))
 
-        found_user = users.query.filter_by(name=user).first()
-        if found_user:
-            session["email"] = found_user.email
-        else:
-            usr = users(user, "")
-            db.session.add(usr)
-            db.session.commit()
+        return '<h1>Invalid username or password</h1>'
+        #return '<h1>' + form.username.data + ' ' + form.password.data + '</h1>'
 
-        flash("Login Successful")
-        return redirect(url_for("user"))
-    else:
-        if "user" in session:
-            flash("Already Logged in")
-            return redirect(url_for("user"))
-        return render_template("login.html")
+    return render_template('login.html', form=form)
 
-@app.route("/user", methods=["POST", "GET"])
-def user():
-    email=None
-    if "user" in session:
-        user = session["user"]
-        
-        if request.method == "POST":
-            email = request.form["email"]
-            session["email"] = email
-            found_user = users.query.filter_by(name=user).first()
-            found_user.email = email
-            db.session.commit()
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    form = RegisterForm()
 
-            flash("Email was saved")
-        else:
-            if "email" in session:
-                email = session["email"]
+    if form.validate_on_submit():
+        hashed_password = generate_password_hash(form.password.data, method='sha256')
+        new_user = User(username=form.username.data, email=form.email.data, password=hashed_password)
+        db.session.add(new_user)
+        db.session.commit()
 
-        return render_template("user.html", email=email)
-    else:
-        flash("not logged in")
-        return redirect(url_for("login"))
-        
+        return '<h1>New user has been created!</h1>'
+        #return '<h1>' + form.username.data + ' ' + form.email.data + ' ' + form.password.data + '</h1>'
+
+    return render_template('signup.html', form=form)
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html', name=current_user.username)
 
 @app.route('/logout')
+@login_required
 def logout():
-    if "user" in session:
-        user = session["user"]
-        flash ("You have been logged out!", "info")
-    session.pop("user", None)
-    session.pop("email", None)
-    
-    return redirect(url_for("login"))
-# @app.route("/test")
-# #define the function for the route
-# def test():
-#     return render_template("new.html")
+    logout_user()
+    return redirect(url_for('index'))
 
-if __name__ == "__main__":
-    db.create_all()
+if __name__ == '__main__':
     app.run(debug=True)
-
-
-# def home():
-#     return "Hello! this is the main page <h1> HELLO</h1>"
-
-# @app.route("/<name>")
-# def user(name):
-#     return f"Hello {name}!"
-
-# @app.route("/admin/")
-# def admin():
-#     # if a:
-#     return redirect(url_for("user", name="Admin!")
-
-
-
-
-
-
