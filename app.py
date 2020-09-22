@@ -6,20 +6,24 @@ from wtforms.validators import InputRequired, Email, Length
 from flask_sqlalchemy  import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+import os
+
+file_path = os.path.abspath(os.getcwd())+"\database.db"
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'Thisissupposedtobesecret!'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:////C:/Users/dolma/OneDrive/Desktop/phase1a/database.db'
-bootstrap = Bootstrap(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///'+file_path
+Bootstrap(app)
 db = SQLAlchemy(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+#creating a new table in database with four columns
 class User(UserMixin,db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(15), unique=True)
-    email = db.Column(db.String(50), unique=True)
+    email = db.Column(db.String(50), unique=True) #Column with 50 characters
     password = db.Column(db.String(80))
 
 @login_manager.user_loader
@@ -36,7 +40,6 @@ class RegisterForm(FlaskForm):
     username = StringField('username', validators=[InputRequired(), Length(min=4, max=15)])
     password = PasswordField('password', validators=[InputRequired(), Length(min=8, max=80)])
 
-
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -44,7 +47,7 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
-    #Checks if form is submitted
+    # Checks if form is submitted
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
         if user:
@@ -56,6 +59,7 @@ def login():
         #return '<h1>' + form.username.data + ' ' + form.password.data + '</h1>'
 
     return render_template('login.html', form=form)
+    return render_template('login.html',form=form)
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -82,6 +86,5 @@ def dashboard():
 def logout():
     logout_user()
     return redirect(url_for('index'))
-
 if __name__ == '__main__':
     app.run(debug=True)
